@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logistics Dashboard | Car Requisitions</title>
+<style>
+/* Global Styles */
+body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f5f5f5; margin:0; padding:0; }
+.navbar { background:#004aad; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 30px; position:sticky; top:0; z-index:1000; }
+.navbar h1 { margin:0; font-size:22px; }
+.navbar ul { list-style:none; display:flex; gap:20px; margin:0; padding:0; }
+.navbar a { color:white; text-decoration:none; font-weight:bold; cursor:pointer; }
+.navbar a:hover, .navbar a.active { text-decoration:underline; }
+
+.container { max-width:1200px; margin:30px auto; background:#fff; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1); border-radius:8px; }
+.tabs { display:flex; gap:10px; margin-bottom:20px; justify-content:center; flex-wrap:wrap; }
+.tab { padding:10px 20px; cursor:pointer; border-radius:5px; background:#e0e0e0; font-weight:bold; transition:0.3s; }
+.tab.active { background:#004aad; color:white; }
+
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; font-size:14px; }
+th { background-color:#2c5f2d; color:white; }
+tr:nth-child(even){background:#f2f2f2;}
+
+button { padding:6px 12px; margin:2px; border:none; cursor:pointer; border-radius:3px; font-weight:bold; font-size:13px; }
+.approve-btn { background:#28a745; color:#fff; } .approve-btn:hover { background:#218838; }
+.reject-btn { background:#dc3545; color:#fff; } .reject-btn:hover { background:#c82333; }
+.view-btn { background:#007bff; color:#fff; } .view-btn:hover { background:#0056b3; }
+.export-btn { background:#28a745; color:white; } .export-btn:hover { background:#218838; }
+.quick-btn { background:#ffa500; color:white; } .quick-btn:hover { background:#e69500; }
+
+.badge-pending { background:#f59e0b; color:white; font-weight:bold; padding:4px 8px; border-radius:5px; }
+.badge-approved { background:#28a745; color:white; font-weight:bold; padding:4px 8px; border-radius:5px; }
+.badge-rejected { background:#dc3545; color:white; font-weight:bold; padding:4px 8px; border-radius:5px; }
+
+.filter-container { text-align:right; margin-bottom:10px; }
+.filter-container select { padding:5px 10px; border-radius:4px; }
+
+/* Modal Styles */
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:2000; }
+.modal-content { background:#fff; padding:20px; border-radius:5px; width:450px; max-width:90%; position:relative; }
+.modal-content h3 { margin-top:0; }
+.close-btn { position:absolute; top:10px; right:10px; cursor:pointer; font-weight:bold; font-size:18px; }
+.modal-table { width:100%; border-collapse:collapse; margin-top:10px; }
+.modal-table td { padding:6px; border-bottom:1px solid #ccc; text-align:left; }
+
+/* Responsive Table */
+@media(max-width:768px){
+  table, thead, tbody, th, td, tr { display:block; }
+  th { display:none; }
+  td { display:flex; justify-content:space-between; padding:8px; border:none; border-bottom:1px solid #ccc; }
+  td::before { content: attr(data-label); font-weight:bold; }
+  .filter-container { text-align:left; }
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>🚛 Logistics Dashboard</h1>
+  <ul>
+    <li><a href="#" onclick="logout()">Logout</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="pending">Pending Requests</div>
+    <div class="tab" data-tab="status">My Approval Status</div>
+    <div class="tab" data-tab="report">Reports</div>
+  </div>
+
+  <!-- Pending Requests -->
+  <div id="pending" class="tab-content active">
+    <h2>Pending Requests</h2>
+    <table id="pendingTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Requester</th>
+          <th>Department</th>
+          <th>Destination</th>
+          <th>Vehicle Type</th>
+          <th>Vehicle Plate</th>
+          <th>Driver Name</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- My Approval Status -->
+  <div id="status" class="tab-content">
+    <h2>My Approval Status</h2>
+    <table id="statusTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Requester</th>
+          <th>Department</th>
+          <th>Destination</th>
+          <th>Vehicle Type</th>
+          <th>Status</th>
+          <th>Remarks</th>
+          <th>View</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Reports -->
+  <div id="report" class="tab-content">
+    <h2>Reports</h2>
+    <div class="filter-container">
+      Filter by Status: 
+      <select id="reportFilter" onchange="loadReports()">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <table id="reportTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Requester</th>
+          <th>Department</th>
+          <th>Destination</th>
+          <th>Vehicle Type</th>
+          <th>Vehicle Plate</th>
+          <th>Driver Name</th>
+          <th>Status</th>
+          <th>Remarks</th>
+          <th>Created At</th>
+          <th>View</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="viewModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal()">&times;</span>
+    <h3>Requisition Details</h3>
+    <table class="modal-table">
+      <tbody id="modalBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_URL = "http://localhost:5000/api/requisition";
+const FLEET_API_URL = "http://localhost:5000/api/fleet/available";
+const token = localStorage.getItem("token");
+let reportData = [];
+
+function logout() { localStorage.clear(); window.location.href = "index.html"; }
+
+// Tab Switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => showTab(tab.dataset.tab));
+});
+
+function showTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+    if (tabId === 'status') loadStatus();
+    if (tabId === 'report') loadReports();
+}
+
+// Modal
+function viewDetails(req) {
+    const modalBody = document.getElementById("modalBody");
+    const keys = ["id","requestedBy","department","destination","vehicleType","vehiclePlate","driverName","reason","status","remarks","created_at"];
+    modalBody.innerHTML = keys.map(k => `<tr><td><strong>${k}:</strong></td><td>${req[k] || '-'}</td></tr>`).join('');
+    document.getElementById("viewModal").style.display = "flex";
+}
+function closeModal() { document.getElementById("viewModal").style.display = "none"; }
+
+// Quick Assign
+async function quickAssign(reqId){
+    try{
+        const res = await fetch(FLEET_API_URL, { headers: { "Authorization": "Bearer "+token } });
+        const fleet = await res.json();
+
+        if(!fleet.length) return alert("No available vehicles or drivers!");
+
+        const vehicle = fleet[0];
+
+        // Assign the vehicle
+        await fetch(`${FLEET_API_URL}/assign/${vehicle.id}`, {
+            method: "POST",
+            headers: { "Authorization": "Bearer "+token }
+        });
+
+        document.getElementById(`vehicle-${reqId}`).value = vehicle.plate;
+        document.getElementById(`driver-${reqId}`).value = vehicle.driverName;
+
+    } catch(err){
+        console.error(err);
+        alert("Error fetching or assigning fleet data");
+    }
+}
+
+// Pending Requests
+async function loadPending(){
+    try{
+        const res = await fetch(API_URL, { headers:{ "Authorization":"Bearer "+token } });
+        const data = await res.json();
+        const tbody = document.querySelector("#pendingTable tbody");
+        tbody.innerHTML="";
+        if(!data.length){ tbody.innerHTML='<tr><td colspan="9">No pending requisitions</td></tr>'; return; }
+
+        data.forEach(req=>{
+            if(req.logisticsSignature || req.status==='rejected') return;
+            const overdue = new Date(req.created_at) < new Date(Date.now() - 3*24*60*60*1000);
+            const tr=document.createElement('tr');
+            tr.innerHTML=`
+                <td data-label="ID">${req.id}</td>
+                <td data-label="Requester">${req.requestedBy}</td>
+                <td data-label="Department">${req.department}</td>
+                <td data-label="Destination">${req.destination}</td>
+                <td data-label="Vehicle Type">${req.vehicleType}</td>
+                <td data-label="Vehicle Plate"><input type="text" id="vehicle-${req.id}" placeholder="Plate"></td>
+                <td data-label="Driver Name"><input type="text" id="driver-${req.id}" placeholder="Driver"></td>
+                <td data-label="Status">${overdue?'<span class="badge-pending">Pending ⚠️</span>':'<span class="badge-pending">Pending</span>'}</td>
+                <td data-label="Actions">
+                    <button class="approve-btn" onclick="approve(${req.id})">Approve</button>
+                    <button class="reject-btn" onclick="rejectReq(${req.id})">Reject</button>
+                    <button class="view-btn" onclick='viewDetails(${JSON.stringify(req)})'>View</button>
+                    <button class="view-btn" onclick="quickAssign(${req.id})">Quick Assign</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }catch(err){ console.error(err); alert("Error loading pending requests"); }
+}
+
+// Approve / Reject
+async function approve(id){
+    const vehicle=document.getElementById(`vehicle-${id}`).value.trim();
+    const driver=document.getElementById(`driver-${id}`).value.trim();
+    if(!vehicle || !driver) return alert("Fill Vehicle Plate & Driver");
+    try{
+        const res=await fetch(`${API_URL}/approve/logistics/${id}`,{
+            method:"PUT",
+            headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+            body: JSON.stringify({ logisticsSignature:"Approved", vehiclePlate:vehicle, driverName:driver })
+        });
+        const data=await res.json(); alert(data.message); loadPending();
+    }catch(err){ console.error(err); alert("Error approving"); }
+}
+
+async function rejectReq(id){
+    const reason=prompt("Enter rejection reason:");
+    if(!reason) return;
+    try{
+        const res=await fetch(`${API_URL}/reject/logistics/${id}`,{
+            method:"PUT",
+            headers:{ "Content-Type":"application/json","Authorization":"Bearer "+token },
+            body: JSON.stringify({reason})
+        });
+        const data=await res.json(); alert(data.message); loadPending();
+    }catch(err){ console.error(err); alert("Error rejecting"); }
+}
+
+// Status
+async function loadStatus(){
+    try{
+        const res = await fetch(API_URL, { headers:{ "Authorization":"Bearer "+token } });
+        const data = await res.json();
+        const tbody=document.querySelector("#statusTable tbody");
+        tbody.innerHTML="";
+        const approved = data.filter(r => r.logisticsSignature === "Approved");
+        if(!approved.length){ tbody.innerHTML='<tr><td colspan="8">No records approved by Logistics</td></tr>'; return; }
+
+        approved.forEach(req=>{
+            const tr=document.createElement('tr');
+            tr.innerHTML=`
+                <td data-label="ID">${req.id}</td>
+                <td data-label="Requester">${req.requestedBy}</td>
+                <td data-label="Department">${req.department}</td>
+                <td data-label="Destination">${req.destination}</td>
+                <td data-label="Vehicle Type">${req.vehicleType}</td>
+                <td data-label="Status"><span class="badge-approved">Approved</span></td>
+                <td data-label="Remarks">${req.remarks||'Approved by Logistics'}</td>
+                <td data-label="View"><button class="view-btn" onclick='viewDetails(${JSON.stringify(req)})'>View</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }catch(err){ console.error(err); alert("Error loading approval status"); }
+}
+
+// Reports
+async function loadReports(){
+    try{
+        const res = await fetch(`${API_URL}/report`, { headers:{ "Authorization":"Bearer "+token } });
+        reportData = await res.json();
+        const filter=document.getElementById("reportFilter").value;
+        const tbody=document.querySelector("#reportTable tbody");
+        tbody.innerHTML="";
+
+        let filtered=reportData;
+        if(filter!=='all'){ filtered=reportData.filter(r=>{
+            if(filter==="approved") return r.status==="approved"||r.status==="logistics_approved";
+            if(filter==="pending") return r.status==="pending";
+            if(filter==="rejected") return r.status==="rejected";
+        });}
+
+        if(!filtered.length){ tbody.innerHTML='<tr><td colspan="11">No records</td></tr>'; return; }
+
+        filtered.forEach(r=>{
+            let badge='<span class="badge-pending">Pending</span>';
+            if(r.status==="approved"||r.status==="logistics_approved") badge='<span class="badge-approved">Approved</span>';
+            else if(r.status==="rejected") badge='<span class="badge-rejected">Rejected</span>';
+
+            const tr=document.createElement('tr');
+            tr.innerHTML=`
+                <td data-label="ID">${r.id}</td>
+                <td data-label="Requester">${r.requestedBy}</td>
+                <td data-label="Department">${r.department}</td>
+                <td data-label="Destination">${r.destination}</td>
+                <td data-label="Vehicle Type">${r.vehicleType}</td>
+                <td data-label="Vehicle Plate">${r.vehiclePlate||'-'}</td>
+                <td data-label="Driver Name">${r.driverName||'-'}</td>
+                <td data-label="Status">${badge}</td>
+                <td data-label="Remarks">${r.remarks||'-'}</td>
+                <td data-label="Created At">${r.created_at||'-'}</td>
+                <td data-label="View"><button class="view-btn" onclick='viewDetails(${JSON.stringify(r)})'>View</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }catch(err){ console.error(err); alert("Error loading reports"); }
+}
+
+function exportCSV(){
+    if(!reportData.length) return alert("No data to export");
+    let csv="ID,Requester,Department,Destination,VehicleType,VehiclePlate,DriverName,Status,Remarks,CreatedAt\n";
+    reportData.forEach(r=>{
+        csv+=`"${r.id}","${r.requestedBy}","${r.department}","${r.destination}","${r.vehicleType}","${r.vehiclePlate||''}","${r.driverName||''}","${r.status}","${r.remarks||''}","${r.created_at||''}"\n`;
+    });
+    const blob=new Blob([csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='logistics_report.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+<!-- Footer -->
+<footer style="text-align:center; padding:15px 0; font-size:12px; color:#777;">
+    © 2025 Mugonero District Hospital | All rights reserved
+</footer>
+// Initial load
+loadPending();
+</script>
+
+</body>
+</html>

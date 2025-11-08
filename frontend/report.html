@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Requisition Report</title>
+<style>
+body { font-family: 'Times New Roman', Times, serif; background-color: #f5f5f5; padding: 20px; }
+.container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+h2 { text-align: center; margin-bottom: 30px; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+th { background-color: #2c5f2d; color: white; }
+.status-approved { background-color: #d4edda; }
+.status-rejected { background-color: #f8d7da; }
+.button-group { text-align: right; margin-bottom: 20px; }
+.btn { padding: 10px 20px; margin-left: 10px; border: none; border-radius: 4px; cursor: pointer; }
+.btn-print { background-color: #007bff; color: white; }
+.btn-print:hover { background-color: #0056b3; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Car Requisition Report</h2>
+<div class="button-group">
+    <button class="btn btn-print" onclick="window.print()">Print Report</button>
+</div>
+
+<h3>Approved Requisitions</h3>
+<table id="approvedTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Requester</th>
+            <th>Department</th>
+            <th>Destination</th>
+            <th>Vehicle Type</th>
+            <th>Vehicle Plate</th>
+            <th>Driver</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h3>Rejected Requisitions</h3>
+<table id="rejectedTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Requester</th>
+            <th>Department</th>
+            <th>Destination</th>
+            <th>Vehicle Type</th>
+            <th>Rejection Reason</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+</div>
+
+<script>
+const API_URL = "/api/requisition/report";
+const token = localStorage.getItem("token");
+
+// Load report data
+async function loadReport() {
+    try {
+        const res = await fetch(API_URL, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await res.json();
+
+        const approvedBody = document.querySelector("#approvedTable tbody");
+        const rejectedBody = document.querySelector("#rejectedTable tbody");
+        approvedBody.innerHTML = "";
+        rejectedBody.innerHTML = "";
+
+        data.forEach(r => {
+            if (r.status === "approved") {
+                approvedBody.innerHTML += `
+                    <tr class="status-approved">
+                        <td>${r.id}</td>
+                        <td>${r.requestedBy}</td>
+                        <td>${r.department}</td>
+                        <td>${r.destination}</td>
+                        <td>${r.vehicleType}</td>
+                        <td>${r.vehiclePlate || ""}</td>
+                        <td>${r.driverName || ""}</td>
+                        <td>${new Date(r.created_at).toLocaleString()}</td>
+                        <td>${r.status}</td>
+                    </tr>
+                `;
+            } else if (r.status === "rejected") {
+                const reason = r.logisticsRemarks || r.dafRemarks || "Rejected";
+                rejectedBody.innerHTML += `
+                    <tr class="status-rejected">
+                        <td>${r.id}</td>
+                        <td>${r.requestedBy}</td>
+                        <td>${r.department}</td>
+                        <td>${r.destination}</td>
+                        <td>${r.vehicleType}</td>
+                        <td>${reason}</td>
+                        <td>${new Date(r.created_at).toLocaleString()}</td>
+                        <td>${r.status}</td>
+                    </tr>
+                `;
+            }
+        });
+
+    } catch (err) {
+        console.error("Error loading report:", err);
+        alert("Failed to load report. Check console.");
+    }
+}
+
+// Initial load
+loadReport();
+</script>
+<!-- Footer -->
+<footer style="text-align:center; padding:15px 0; font-size:12px; color:#777;">
+    © 2025 Mugonero District Hospital | All rights reserved
+</footer>
+</body>
+</html>

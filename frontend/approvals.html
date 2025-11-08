@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Requisition Admin Panel</title>
+<style>
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        background-color: #f5f5f5;
+        padding: 20px;
+    }
+    h2 { text-align: center; margin-bottom: 20px; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        margin-bottom: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+        font-size: 14px;
+    }
+    th { background-color: #2c5f2d; color: #fff; }
+    button {
+        padding: 5px 10px;
+        font-size: 12px;
+        margin-right: 5px;
+        cursor: pointer;
+        border: none;
+        border-radius: 3px;
+        color: #fff;
+    }
+    .dept { background-color: #007bff; }
+    .logistics { background-color: #28a745; }
+    .daf { background-color: #ffc107; color: #000; }
+    .logout { background-color: #dc3545; float: right; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Car Requisition Admin Panel</h2>
+<button class="logout" onclick="logout()">Logout</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Department</th>
+            <th>Requested By</th>
+            <th>Purpose</th>
+            <th>Destination</th>
+            <th>Departure</th>
+            <th>Return</th>
+            <th>Dept Approval</th>
+            <th>Logistics Approval</th>
+            <th>DAF Approval</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="requisitionBody"></tbody>
+</table>
+
+<script>
+const API_URL = "/api/requisition";
+const role = localStorage.getItem("role");
+const token = localStorage.getItem("token");
+
+if (!token) {
+    alert("Please login first!");
+    window.location.href = "index.html";
+}
+
+async function fetchRequisitions() {
+    const res = await fetch(API_URL, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    const data = await res.json();
+
+    const tbody = document.getElementById("requisitionBody");
+    tbody.innerHTML = data.map(r => {
+        let actions = "";
+
+        if ((role === "department" || role === "admin") && !r.deptSignature) {
+            actions += `<button class="dept" onclick="approve('department', ${r.id})">Dept Approve</button>`;
+        }
+        if ((role === "logistics" || role === "admin") && !r.logisticsSignature) {
+            actions += `<button class="logistics" onclick="approve('logistics', ${r.id})">Logistics</button>`;
+        }
+        if ((role === "daf" || role === "admin") && !r.dafSignature) {
+            actions += `<button class="daf" onclick="approve('daf', ${r.id})">DAF</button>`;
+        }
+
+        return `
+        <tr>
+            <td>${r.id}</td>
+            <td>${r.date}</td>
+            <td>${r.department}</td>
+            <td>${r.requestedBy}</td>
+            <td>${r.purpose}</td>
+            <td>${r.destination}</td>
+            <td>${r.departure}</td>
+            <td>${r.returnTime}</td>
+            <td>${r.deptSignature || "-"}</td>
+            <td>${r.logisticsSignature || "-"}</td>
+            <td>${r.dafSignature || "-"}</td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join("");
+}
+
+async function approve(type, id) {
+    const name = prompt(`Enter your ${type} signature:`);
+    if (!name) return;
+
+    const res = await fetch(`${API_URL}/approve/${type}/${id}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ [`${type}Signature`]: name })
+    });
+
+    const data = await res.json();
+    alert(data.message);
+    fetchRequisitions(); // Refresh the table
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "admin.html";
+}
+
+// Fetch requisitions on page load
+fetchRequisitions();
+</script>
+
+</body>
+</html>
+
+
+
+

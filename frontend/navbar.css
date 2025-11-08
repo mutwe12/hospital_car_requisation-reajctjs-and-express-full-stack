@@ -1,0 +1,72 @@
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f4f6f8;
+  color: #333;
+}
+
+.navbar {
+  background: #004aad;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 30px;
+}
+
+.navbar .nav-right {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+
+.navbar .nav-right a {
+  text-decoration: none;
+  color: white;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.navbar .nav-right a:hover,
+.navbar .nav-right a.active {
+  color: #ffde59;
+}
+
+.welcome-section {
+  text-align: center;
+  margin-top: 80px;
+  padding: 40px;
+}
+
+.welcome-section h1 {
+  font-size: 2.2em;
+  color: #004aad;
+}
+
+.welcome-section p {
+  max-width: 600px;
+  margin: 15px auto;
+  color: #555;
+}
+
+.cta-buttons {
+  margin-top: 30px;
+}
+
+.btn {
+  text-decoration: none;
+  background: #004aad;
+  color: white;
+  padding: 10px 25px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  background: #003680;
+}
+
+.btn.secondary {
+  background: #0078d7;
+}

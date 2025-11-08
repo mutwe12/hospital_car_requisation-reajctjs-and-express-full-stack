@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Requisition Dashboard</title>
+<style>
+  body { font-family: 'Times New Roman', Times, serif; background-color: #f5f5f5; padding: 20px; }
+  .container { max-width: 1200px; margin: auto; background: #fff; padding: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  h2 { text-align: center; margin-bottom: 20px; }
+  .nav-buttons { text-align: center; margin-bottom: 20px; }
+  .nav-buttons button {
+    padding: 10px 20px; margin: 0 5px; font-weight: bold; border-radius: 4px; border: none;
+    cursor: pointer; background-color: #2c5f2d; color: white;
+  }
+  .nav-buttons button:hover { background-color: #1e4620; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+  th { background-color: #2c5f2d; color: white; }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  .approve-btn { background-color: #28a745; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; }
+  .approve-btn:hover { background-color: #218838; }
+  .reject-btn { background-color: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; }
+  .reject-btn:hover { background-color: #c82333; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Car Requisition Dashboard</h2>
+
+  <div class="nav-buttons">
+    <button onclick="loadPage('department')">Department</button>
+    <button onclick="loadPage('logistics')">Logistics</button>
+    <button onclick="loadPage('daf')">DAF</button>
+  </div>
+
+  <div id="pageContent">
+    <!-- Table content will be dynamically injected here -->
+    <p style="text-align:center">Select a section above to view pending requisitions.</p>
+  </div>
+</div>
+
+<script>
+  const API_URL = "/api/requisition";
+  const token = localStorage.getItem("token"); // if using auth
+
+  async function loadPage(section) {
+    try {
+      const res = await fetch(API_URL, {
+        headers: { "Authorization": token ? `Bearer ${token}` : "" }
+      });
+      const data = await res.json();
+      let filtered = [];
+
+      if (section === "department") {
+        filtered = data.filter(r => !r.deptSignature);
+      } else if (section === "logistics") {
+        filtered = data.filter(r => r.deptSignature && !r.logisticsSignature);
+      } else if (section === "daf") {
+        filtered = data.filter(r => r.logisticsSignature && !r.dafSignature);
+      }
+
+      renderTable(section, filtered);
+
+    } catch (err) {
+      console.error("Error loading data:", err);
+      document.getElementById("pageContent").innerHTML = "<p style='color:red'>Error loading data.</p>";
+    }
+  }
+
+  function renderTable(section, data) {
+    const container = document.getElementById("pageContent");
+    if (data.length === 0) {
+      container.innerHTML = `<p style="text-align:center">No pending requisitions for ${section}.</p>`;
+      return;
+    }
+
+    let headers = ["ID", "Requester", "Department", "Destination", "Vehicle Type"];
+    if (section !== "department") {
+      headers.push("Vehicle Plate", "Driver Name");
+    }
+    headers.push("Action");
+
+    let html = "<table><thead><tr>";
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += "</tr></thead><tbody>";
+
+    data.forEach(req => {
+      html += "<tr>";
+      html += `<td>${req.id}</td>`;
+      html += `<td>${req.requestedBy}</td>`;
+      html += `<td>${req.department}</td>`;
+      html += `<td>${req.destination}</td>`;
+      html += `<td>${req.vehicleType}</td>`;
+
+      if (section !== "department") {
+        html += `<td>${req.vehiclePlate || '-'}</td>`;
+        html += `<td>${req.driverName || '-'}</td>`;
+      }
+
+      html += `<td>
+        <button class="approve-btn" onclick="approve('${section}', ${req.id})">Approve</button>
+        <button class="reject-btn" onclick="reject('${section}', ${req.id})">Reject</button>
+      </td>`;
+      html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+    container.innerHTML = html;
+  }
+
+  async function approve(section, id) {
+    let endpoint = "";
+    if (section === "department") endpoint = "approve/department";
+    else if (section === "logistics") endpoint = "approve/logistics";
+    else if (section === "daf") endpoint = "approve/daf";
+
+    try {
+      const res = await fetch(`${API_URL}/${endpoint}/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ? `Bearer ${token}` : ""
+        },
+        body: JSON.stringify({ [section + "Signature"]: "Approved" })
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadPage(section);
+    } catch (err) {
+      console.error("Error approving:", err);
+      alert("Approval failed.");
+    }
+  }
+
+  function reject(section, id) {
+    if (confirm("Are you sure you want to reject this requisition?")) {
+      alert(`Requisition ID ${id} marked as rejected (add endpoint if needed).`);
+    }
+  }
+</script>
+<!-- Footer -->
+<footer style="text-align:center; padding:15px 0; font-size:12px; color:#777;">
+    © 2025 Mugonero District Hospital | All rights reserved
+</footer>
+</body>
+</html>
